@@ -1,10 +1,5 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -12,15 +7,440 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+:root {
+  /* Light theme surfaces (from Velox brand colors) */
+  --background: #f7f4ee;      /* cream */
+  --background-2: #ffffff;     /* white */
+  --foreground: #0e2230;       /* navy deep */
+  --muted: #5b6b7a;            /* muted text */
+  --border: #e5dccb;           /* light border */
+  --border-strong: #d2c6ac;    /* stronger border */
+  --card: #ffffff;             /* white cards */
+  --card-hover: #f1ede4;       /* cream hover */
+
+  /* Brand / accent */
+  --accent: #c9a961;           /* brand gold from Velox logo family */
+  --accent-soft: rgba(201, 169, 97, 0.14);
+  --accent-gradient: linear-gradient(135deg, #dec783 0%, #c9a961 52%, #b78e39 100%);
+
+  /* Semantic */
+  --up: #22c55e;              /* green */
+  --down: #ef4444;            /* red */
+  --info: #38bdf8;            /* blue */
+  --accent-2: #7c6cff;        /* violet secondary */
+
+  /* App-specific dark override for ticker/ticker tape */
+  --app-bg-dark: #0e2230;     /* navy deep for ticker and dark elements */
+  --app-bg-lighter: #070b16;  /* darker navy for backgrounds */
+
+  /* Landing patterns (kept for landing page compatibility) */
+  --pattern-dot: radial-gradient(circle, rgba(27,58,82,0.18) 1px, transparent 1px);
+  --pattern-grid: linear-gradient(to right, rgba(27,58,82,0.10) 1px, transparent 1px),
+                  linear-gradient(to bottom, rgba(27,58,82,0.10) 1px, transparent 1px);
+}
+
+/* Subtle dot-grid background for landing sections */
+.bg-pattern-dots {
+  background-image: var(--pattern-dot);
+  background-size: 22px 22px;
+  background-position: center top;
+}
+
+/* Subtle grid background for landing sections */
+.bg-pattern-grid {
+  background-image: var(--pattern-grid);
+  background-size: 44px 44px;
+  background-position: center top;
+}
+
+/* Watermark logo mark — used sparingly to break emptiness */
+.bg-watermark::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: url('/logos/velox-favicon-mark.png');
+  background-repeat: no-repeat;
+  background-position: 92% 10%;
+  background-size: 220px;
+  opacity: 0.05;
+}
+
+/* Grain texture overlay for depth */
+.bg-grain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.45;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Landing theme - now inherits main light theme from :root */
+.landing-theme {
+  /* Inherits all variables automatically */
+  --brand-navy: #1b3a52;  /* Keep for backward compatibility with landing components */
+}
+
+/* Elevated CTAs for the light marketing surface. */
+.landing-button-gold {
+  background: linear-gradient(135deg, #dec783 0%, #c9a961 52%, #b78e39 100%);
+  color: var(--brand-navy-deep);
+  box-shadow: 0 8px 20px rgba(183, 142, 57, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.38);
+  transition: transform 180ms ease, box-shadow 180ms ease, filter 180ms ease;
+}
+
+.landing-button-gold:hover {
+  box-shadow: 0 12px 25px rgba(183, 142, 57, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.46);
+  filter: saturate(1.06) brightness(1.02);
+  transform: translateY(-2px);
+}
+
+/* UPDATED */*
+.landing-button-navy {
+  background: linear-gradient(135deg, #244b68 0%, #1b3a52 55%, #0e2230 100%);
+  color: white;
+  box-shadow: 0 12px 24px rgba(14, 34, 48, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  transition: transform 180ms ease, box-shadow 180ms ease, filter 180ms ease;
+}
+
+.landing-button-navy:hover {
+  box-shadow: 0 16px 28px rgba(14, 34, 48, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  filter: brightness(1.06);
+  transform: translateY(-2px);
+}
+
+.landing-button-gold:focus-visible,
+.landing-button-navy:focus-visible {
+  outline: 3px solid rgba(201, 169, 97, 0.38);
+  outline-offset: 3px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  height: 100%;
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  height: 100%;
+  overflow-x: hidden;
+  width: 100%;
+  overscroll-behavior-y: none;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  line-height: 1.6;
+}
+
+/* Subtle ambient glow for light theme */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 70% 40% at 50% -10%, rgba(201, 169, 97, 0.03), transparent),
+    radial-gradient(ellipse 55% 45% at 100% 100%, rgba(124, 108, 255, 0.03), transparent),
+    radial-gradient(ellipse 45% 35% at 0% 100%, rgba(56, 189, 248, 0.02), transparent);
+}
+
+/* ---- Scrollbar ---- */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #d2c6ac;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #b8a68d;
+}
+
+/* ---- Utility classes ---- */
+/* UPDATED FOR LIGHT THEME */
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 1px 2px rgba(14,34,48,0.08), 0 4px 12px rgba(14,34,48,0.12);
+}
+
+.login-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 1px 2px rgba(14,34,48,0.08), 0 8px 24px rgba(14,34,48,0.1);
+}
+
+.login-input {
+  background: var(--background-2);
+  border: 1px solid var(--border);
+  color: var(--foreground);
+}
+
+.login-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft), 0 4px 16px rgba(201,169,97,0.15);
+}
+.bg-up {
+  background: var(--up);
+}
+
+.bg-down {
+  background: var(--down);
+}
+
+/* Gold accent button */
+.btn-gold {
+  background: var(--accent-gradient);
+  color: #0a0e14;
+  font-weight: 600;
+  border-radius: 10px;
+  transition: filter 0.15s ease, opacity 0.15s ease, transform 0.15s ease;
+}
+.btn-gold:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+.btn-gold:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Ghost / outline button */
+.btn-ghost {
+  background: transparent;
+  color: var(--foreground);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.btn-ghost:hover {
+  background: var(--card-hover);
+  border-color: var(--border-strong);
+}
+
+/* Input */
+.input {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--foreground);
+  padding: 0.65rem 0.85rem;
+  width: 100%;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.input::placeholder {
+  color: var(--muted);
+}
+
+/* Brand gradient text */
+.brand-text {
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Pill / badge */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border-radius: 9999px;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* ---------- Base headings ---------- */
+h1, h2, h3 {
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+}
+/* ============================================================
+   ANIMATIONS & MOTION
+   ============================================================ */
+
+/* Respect users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---- Scroll reveal (fade + rise) ---- */
+@keyframes vx-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.reveal {
+  opacity: 0;
+  transform: translateY(12px);
+  transition:
+    opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: opacity, transform;
+}
+.reveal-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ---- Hero entrance (scale + fade) ---- */
+@keyframes vx-hero-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.hero-in {
+  animation: vx-hero-in 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ---- Infinite marquee (ticker tape) ---- */
+@keyframes vx-marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: vx-marquee 55s linear infinite;
+  will-change: transform;
+}
+.marquee-track:hover {
+  animation-play-state: paused;
+}
+
+/* ---- Live price flash (green/red pulse on change) ---- */
+@keyframes vx-flash-up {
+  0% {
+    background-color: rgba(34, 197, 94, 0.28);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+@keyframes vx-flash-down {
+  0% {
+    background-color: rgba(239, 68, 68, 0.28);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+.flash-up {
+  animation: vx-flash-up 1.6s ease-out;
+}
+.flash-down {
+  animation: vx-flash-down 1.6s ease-out;
+}
+
+/* ---- Count-up number (optional subtle) ---- */
+@keyframes vx-count-pop {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.06);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.count-pop {
+  animation: vx-count-pop 0.5s ease-out;
+}
+
+/* ---- Shimmer sweep (skeleton / brand touch) ---- */
+@keyframes vx-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 215, 0, 0.08) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: vx-shimmer 2.5s linear infinite;
+}
+
+/* ---- Pulsing glow dot (live indicators) ---- */
+@keyframes vx-pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(34, 197, 94, 0);
+  }
+}
+.pulse-glow {
+  animation: vx-pulse-glow 3s ease-in-out infinite;
+}
+
+/* ---- Grid background drift (market ambience) ---- */
+@keyframes vx-grid-drift {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 40px 40px;
+  }
+}
+.grid-drift {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  animation: vx-grid-drift 16s linear infinite;
 }

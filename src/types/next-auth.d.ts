@@ -1,0 +1,25 @@
+import { DefaultSession } from "next-auth";
+import type { UserRole, UserStatus } from "@prisma/client";
+
+declare module "next-auth" {
+  interface Session {
+    user: {
+      id: string;
+      role: UserRole;
+      status: UserStatus;
+    } & Omit<NonNullable<DefaultSession["user"]>, "role">;
+  }
+
+  interface User {
+    role?: UserRole;
+    status?: UserStatus;
+  }
+}
+
+declare module "next-auth/jwt" {
+  interface JWT {
+    id?: string;
+    role?: UserRole;
+    status?: UserStatus;
+  }
+}

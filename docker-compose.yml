@@ -1,0 +1,44 @@
+services:
+  velox:
+    image: ghcr.io/syauqi-n/velox:latest
+    container_name: velox
+    restart: always
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - velox-net
+
+  postgres:
+    image: postgres:17-alpine
+    container_name: velox-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: velox
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-velox_secret}
+      POSTGRES_DB: velox
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U velox -d velox"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - velox-net
+
+volumes:
+  pgdata:
+    name: velox-pgdata
+
+networks:
+  velox-net:
+    name: velox-net

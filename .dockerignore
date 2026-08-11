@@ -1,0 +1,17 @@
+node_modules
+.next
+.git
+.env
+.env.*
+*.md
+!ANTISLOP*.md
+.gitignore
+.eslintrc*
+.DS_Store
+*.pem
+npm-debug.log*
+tests
+coverage
+.vercel
+*.tsbuildinfo
+next-env.d.ts

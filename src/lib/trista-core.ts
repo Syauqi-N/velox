@@ -5,7 +5,7 @@ export interface TristaMessage {
   content: string;
 }
 
-export const TRISTA_MODEL = "trista";
+export const TRISTA_MODEL = process.env.TRISTA_MODEL?.trim() || "trista";
 
 export const TRISTA_SYSTEM_PROMPT = `Kamu adalah TRISTA — Trust in Rational Investing, Strategy, Timing & Analysis — asisten AI di komunitas investasi privat Velox.
 

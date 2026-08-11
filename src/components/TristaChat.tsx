@@ -8,12 +8,40 @@ const welcome: TristaMessage = {
   role: "assistant",
   content: "Halo, gue TRISTA. Mau bahas emiten IDX, tesis investasi, risiko portofolio, atau timing sebuah saham?",
 };
-let chatMemory: TristaMessage[] = [welcome];
+
+const STORAGE_KEY = "trista-chat-history";
+const STORAGE_TTL_MS = 24 * 60 * 60 * 1_000; // 24 jam
+
+function loadHistory(): TristaMessage[] {
+  if (typeof window === "undefined") return [welcome];
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [welcome];
+    const parsed = JSON.parse(raw) as { savedAt: number; messages: TristaMessage[] };
+    if (Date.now() - parsed.savedAt > STORAGE_TTL_MS) {
+      localStorage.removeItem(STORAGE_KEY);
+      return [welcome];
+    }
+    const messages = Array.isArray(parsed.messages) ? parsed.messages : [];
+    return messages.length > 0 ? messages : [welcome];
+  } catch {
+    return [welcome];
+  }
+}
+
+function saveHistory(messages: TristaMessage[]) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ savedAt: Date.now(), messages }));
+  } catch {
+    // localStorage penuh / unavailable — abaikan
+  }
+}
 
 export default function TristaChat() {
   const { status } = useSession();
   const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState<TristaMessage[]>(() => chatMemory);
+  const [messages, setMessages] = useState<TristaMessage[]>(() => loadHistory());
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
@@ -31,7 +59,7 @@ export default function TristaChat() {
     if (!content || sending) return;
     const nextMessages = [...messages, { role: "user" as const, content }].slice(-20);
     setMessages(nextMessages);
-    chatMemory = nextMessages;
+    saveHistory(nextMessages);
     setDraft("");
     setSending(true);
     setError("");
@@ -45,7 +73,7 @@ export default function TristaChat() {
       if (!response.ok) throw new Error(data.error ?? "TRISTA tidak dapat menjawab.");
       const updated = [...nextMessages, { role: "assistant" as const, content: String(data.message) }].slice(-20);
       setMessages(updated);
-      chatMemory = updated;
+      saveHistory(updated);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "TRISTA tidak dapat menjawab.");
     } finally {
@@ -54,7 +82,7 @@ export default function TristaChat() {
   }
 
   function resetChat() {
-    chatMemory = [welcome];
+    saveHistory([welcome]);
     setMessages([welcome]);
     setError("");
     setDraft("");

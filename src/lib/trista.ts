@@ -22,17 +22,23 @@ function completionText(payload: ChatCompletionResponse): string | null {
 
 function nineRouterBaseUrl(): string {
   const configured = process.env.NINEROUTER_URL?.trim() || DEFAULT_NINEROUTER_URL;
-  const url = new URL(configured);
-  if (url.protocol !== "http:" && url.protocol !== "https:") throw new Error("NINEROUTER_URL tidak valid");
+  let url: URL;
+  try {
+    url = new URL(configured);
+  } catch {
+    throw new Error(`NINEROUTER_URL tidak valid: ${configured}`);
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") throw new Error(`NINEROUTER_URL protocol tidak valid: ${configured}`);
   return url.toString().replace(/\/$/, "");
 }
 
 export async function askTrista(messages: TristaMessage[], maxTokens = 1_000): Promise<string> {
+  const baseUrl = nineRouterBaseUrl();
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   const apiKey = process.env.NINEROUTER_KEY?.trim();
   if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
 
-  const response = await fetch(`${nineRouterBaseUrl()}/chat/completions`, {
+  const response = await fetch(`${baseUrl}/chat/completions`, {
     method: "POST",
     headers,
     body: JSON.stringify({
@@ -44,6 +50,8 @@ export async function askTrista(messages: TristaMessage[], maxTokens = 1_000): P
     }),
     cache: "no-store",
     signal: AbortSignal.timeout(45_000),
+  }).catch((err: Error) => {
+    throw new Error(`Tidak dapat terhubung ke 9Router di ${baseUrl}: ${err.message}`);
   });
 
   const payload = await response.json().catch(() => ({})) as ChatCompletionResponse;

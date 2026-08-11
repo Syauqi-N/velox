@@ -25,9 +25,10 @@ export async function POST(request: NextRequest) {
     const message = await askTrista(messages);
     return NextResponse.json({ message });
   } catch (error) {
-    console.error("TRISTA chat failed", error);
+    const detail = error instanceof Error ? error.message : String(error);
+    console.error("TRISTA chat failed", detail);
     return NextResponse.json(
-      { error: "TRISTA belum tersedia. Pastikan provider clinepass aktif di 9Router." },
+      { error: `TRISTA error: ${detail}` },
       { status: 503 },
     );
   }

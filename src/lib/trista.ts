@@ -156,11 +156,12 @@ export async function answerTristaMention(postId: string, placeholderId: string)
       data: { content: reply.slice(0, 8_000), aiStatus: "COMPLETE" },
     });
   } catch (error) {
-    console.error("TRISTA mention failed", error);
+    const detail = error instanceof Error ? error.message : String(error);
+    console.error("TRISTA mention failed", detail);
     await prisma.comment.updateMany({
       where: { id: placeholderId },
       data: {
-        content: "TRISTA belum dapat menjawab. Pastikan provider clinepass aktif di 9Router, lalu mention kembali.",
+        content: `TRISTA error: ${detail}`,
         aiStatus: "FAILED",
       },
     }).catch(() => undefined);

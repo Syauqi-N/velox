@@ -27,11 +27,15 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Lowercase image name
+        id: lc
+        run: echo "image=$(echo '${{ env.GHCR_IMAGE }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.GHCR_IMAGE }}
+          images: ${{ steps.lc.outputs.image }}
           tags: |
             type=sha,prefix=sha-,format=short
             type=raw,value=latest
@@ -43,8 +47,8 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=registry,ref=${{ env.GHCR_IMAGE }}:buildcache
-          cache-to: type=registry,ref=${{ env.GHCR_IMAGE }}:buildcache,mode=max
+          cache-from: type=registry,ref=${{ steps.lc.outputs.image }}:buildcache
+          cache-to: type=registry,ref=${{ steps.lc.outputs.image }}:buildcache,mode=max
           platforms: linux/amd64,linux/arm64
           provenance: false
           sbom: false

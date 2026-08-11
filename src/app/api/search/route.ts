@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticatedUser } from "@/lib/authz";
 import { takeRateLimit } from "@/lib/rate-limit";
-import { searchSymbols } from "@/lib/yahoo";
+import { getQuotes, searchSymbols } from "@/lib/yahoo";
 
 interface SearchItem {
   symbol: string;
@@ -9,6 +9,8 @@ interface SearchItem {
   longName?: string;
   exchange?: string;
   index?: string;
+  price: number | null;
+  changePercent: number | null;
 }
 
 export async function GET(req: NextRequest) {
@@ -32,7 +34,7 @@ export async function GET(req: NextRequest) {
   try {
     const raw = await searchSymbols(q);
     const rawQuotes = (Array.isArray(raw) ? raw : (raw as { quotes?: unknown[] }).quotes ?? []) as unknown[];
-    const results: SearchItem[] = rawQuotes
+    const matches = rawQuotes
       .map((item) => {
         const r = item as Record<string, unknown>;
         return {
@@ -43,8 +45,14 @@ export async function GET(req: NextRequest) {
           index: typeof r.index === "string" ? r.index : undefined,
         };
       })
-      .filter((r) => /^[A-Z0-9^.-]{1,15}$/.test(r.symbol))
+      .filter((r) => /^[A-Z0-9^.-]{1,15}$/.test(r.symbol) && r.symbol.endsWith(".JK"))
       .slice(0, 12);
+    const quotes = await getQuotes(matches.map((result) => result.symbol)).catch(() => []);
+    const quoteBySymbol = new Map(quotes.map((quote) => [quote.symbol.toUpperCase(), quote]));
+    const results: SearchItem[] = matches.map((result) => {
+      const quote = quoteBySymbol.get(result.symbol);
+      return { ...result, price: quote?.price ?? null, changePercent: quote?.changePercent ?? null };
+    });
     return NextResponse.json({ results });
   } catch (error) {
     console.error("search error:", error);

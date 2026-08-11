@@ -13,7 +13,7 @@ export function formatCompact(num: number): string {
   return formatNumber(num);
 }
 
-export function formatPercent(value: number | null): string {
+export function formatPercent(value: number | null | undefined): string {
   if (value === null || value === undefined) return "0%";
   const formatted = Math.abs(value).toFixed(2);
   const sign = value < 0 ? "-" : "+";
@@ -21,8 +21,8 @@ export function formatPercent(value: number | null): string {
 }
 
 export function formatPrice(price: number | null | undefined, currency = 'Rp'): string {
-  if (price === null || price === undefined) return `${currency} -`;
-  return `${currency} ${price.toLocaleString()}`;
+  if (price === null || price === undefined) return "Tidak tersedia";
+  return `${currency} ${price.toLocaleString("id-ID", { maximumFractionDigits: 0 })}`;
 }
 
 export function formatDateTime(date: Date | string | number): string {

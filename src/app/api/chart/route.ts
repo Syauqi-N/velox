@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const rateLimit = takeRateLimit(`chart:${user.id}`, 30, 60_000);
+  const rateLimit = takeRateLimit(`chart:${user.id}`, 120, 60_000);
   if (!rateLimit.allowed) {
     return NextResponse.json(
       { error: "Terlalu banyak permintaan chart." },

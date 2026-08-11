@@ -37,6 +37,7 @@ export function chartInterval(value: string | null): AllowedChartInterval | null
 // The watchlist/call whitelist above still applies to trading calls.
 export function searchedSymbol(value: string | null): string | null {
   if (!value) return null;
-  const symbol = value.trim().toUpperCase();
+  const input = value.trim().toUpperCase();
+  const symbol = input && !input.startsWith("^") && !input.includes(".") ? `${input}.JK` : input;
   return /^[A-Z0-9^.-]{1,15}$/.test(symbol) ? symbol : null;
 }

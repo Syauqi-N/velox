@@ -3,309 +3,51 @@
 import { useEffect, useState } from "react";
 import { signOut, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import AppShell from "@/components/AppShell";
-import { formatDateTime } from "@/lib/format";
+import StockPicker from "@/components/StockPicker";
+import CallChart from "@/components/calls/CallChart";
+import { formatDateTime, formatPrice } from "@/lib/format";
 
-interface Call {
-  id: string;
-  ticker: string;
-  action: string;
-  targetPrice: number | null;
-  entryPrice: number | null;
-  reason: string | null;
-  createdAt: string;
-  author: { name: string | null; email: string };
-}
+type CallStatus = "OPEN" | "CLOSED";
+interface Call { id: string; ticker: string; action: "BUY" | "SELL" | "HOLD"; status: CallStatus; targetPrice: number | null; entryPrice: number | null; reason: string | null; createdAt: string; closedAt: string | null; author: { name: string | null; email: string } }
+const styles = { BUY: "border-[var(--up)]/30 bg-[var(--up)]/10 text-[var(--up)]", SELL: "border-[var(--down)]/30 bg-[var(--down)]/10 text-[var(--down)]", HOLD: "border-[var(--accent)]/30 bg-[var(--accent-soft)] text-[var(--foreground)]" };
 
-const actionStyles: Record<string, { label: string; cls: string }> = {
-  BUY: {
-    label: "BUY",
-    cls: "bg-[var(--up)]/15 text-[var(--up)] border border-[var(--up)]/30",
-  },
-  SELL: {
-    label: "SELL",
-    cls: "bg-[var(--down)]/15 text-[var(--down)] border border-[var(--down)]/30",
-  },
-  HOLD: {
-    label: "HOLD",
-    cls: "bg-[var(--accent-soft)] text-[var(--accent)] border border-[var(--accent)]/30",
-  },
-};
-
-function CallsClient() {
+export default function CallsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const [filter, setFilter] = useState<"ALL" | CallStatus>("ALL");
   const [calls, setCalls] = useState<Call[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
-
-  // compose form
-  const [ticker, setTicker] = useState("");
-  const [action, setAction] = useState("BUY");
-  const [targetPrice, setTargetPrice] = useState("");
-  const [entryPrice, setEntryPrice] = useState("");
-  const [reason, setReason] = useState("");
-  const [formError, setFormError] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-
+  const [ticker, setTicker] = useState(""); const [tickerQuery, setTickerQuery] = useState(""); const [pickerKey, setPickerKey] = useState(0); const [action, setAction] = useState<Call["action"]>("BUY"); const [entryPrice, setEntryPrice] = useState(""); const [targetPrice, setTargetPrice] = useState(""); const [reason, setReason] = useState("");
+  const [submitting, setSubmitting] = useState(false); const [formError, setFormError] = useState(""); const [closing, setClosing] = useState<string | null>(null);
   const isAdmin = session?.user?.role === "admin";
 
-  async function loadCalls() {
-    try {
-      const res = await fetch("/api/calls");
-      if (!res.ok) throw new Error("fetch failed");
-      const data = await res.json();
-      setCalls(data.calls ?? []);
-      setLoadError("");
-    } catch {
-      setLoadError("Gagal memuat trading calls.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
+  async function loadCalls() { setLoading(true); setLoadError(""); try { const query = filter === "ALL" ? "" : `?status=${filter}`; const res = await fetch(`/api/calls${query}`); const data = await res.json(); if (!res.ok) throw new Error(data.error ?? "Trading calls tidak tersedia."); setCalls(data.calls ?? []); } catch (error) { setLoadError(error instanceof Error ? error.message : "Trading calls tidak tersedia."); } finally { setLoading(false); } }
   useEffect(() => {
     if (status !== "authenticated" || !session?.user?.id) return;
     let cancelled = false;
-    fetch("/api/calls")
-      .then((res) => {
-        if (!res.ok) throw new Error("fetch failed");
-        return res.json();
-      })
-      .then((data) => {
-        if (!cancelled) {
-          setCalls(data.calls ?? []);
-          setLoadError("");
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setLoadError("Gagal memuat trading calls.");
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [session?.user?.id, status]);
-
-  useEffect(() => {
-    if (status === "unauthenticated") router.replace("/login");
-    if (status === "authenticated" && !session?.user?.id) {
-      void signOut({ callbackUrl: "/login" });
-    }
-  }, [router, session?.user?.id, status]);
-
-  if (status === "loading") {
-    return (
-      <AppShell>
-        <div className="text-[var(--text-muted)]">Memuat...</div>
-      </AppShell>
-    );
-  }
-  if (status === "unauthenticated") {
-    return null;
-  }
-  if (!session?.user?.id) {
-    return null;
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setFormError("");
-    setSubmitting(true);
-    try {
-      const res = await fetch("/api/calls", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ticker,
-          action,
-          targetPrice: targetPrice ? Number(targetPrice) : null,
-          entryPrice: entryPrice ? Number(entryPrice) : null,
-          reason,
-        }),
-      });
+    const query = filter === "ALL" ? "" : `?status=${filter}`;
+    fetch(`/api/calls${query}`).then(async (res) => {
       const data = await res.json();
-      if (!res.ok) {
-        setFormError(data.error ?? "Gagal membuat call.");
-        return;
-      }
-      setTicker("");
-      setAction("BUY");
-      setTargetPrice("");
-      setEntryPrice("");
-      setReason("");
-      await loadCalls();
-    } catch {
-      setFormError("Tidak dapat terhubung ke server.");
-    } finally {
-      setSubmitting(false);
-    }
-  }
+      if (!res.ok) throw new Error(data.error ?? "Trading calls tidak tersedia.");
+      return data;
+    }).then((data) => { if (!cancelled) { setCalls(data.calls ?? []); setLoadError(""); } }).catch((error: unknown) => { if (!cancelled) setLoadError(error instanceof Error ? error.message : "Trading calls tidak tersedia."); }).finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [filter, session?.user?.id, status]);
+  useEffect(() => { if (status === "unauthenticated") router.replace("/login"); if (status === "authenticated" && !session?.user?.id) void signOut({ callbackUrl: "/login" }); }, [router, session?.user?.id, status]);
 
-  return (
-    <AppShell userName={session.user.name} userRole={session.user.role}>
-      <div className="mb-6">
-        <div className="text-xs uppercase tracking-widest text-[var(--text-muted)]">
-          Circle Intel
-        </div>
-        <h1 className="mt-1 text-2xl font-bold tracking-tight">Trading Calls</h1>
-        <p className="mt-2 text-sm text-[var(--text-muted)]">
-          Rekomendasi dan analisis dari tim Velox.
-        </p>
-      </div>
+  async function submit(event: React.FormEvent) { event.preventDefault(); setFormError(""); if (!ticker) { setFormError(tickerQuery.trim() ? "Pilih saham dari dropdown agar ticker valid." : "Pilih saham untuk call."); return; } setSubmitting(true); try { const res = await fetch("/api/calls", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ticker, action, entryPrice: entryPrice ? Number(entryPrice) : null, targetPrice: targetPrice ? Number(targetPrice) : null, reason }) }); const data = await res.json(); if (!res.ok) throw new Error(data.error ?? "Call tidak dapat dibuat."); setTicker(""); setTickerQuery(""); setPickerKey((value) => value + 1); setAction("BUY"); setEntryPrice(""); setTargetPrice(""); setReason(""); await loadCalls(); } catch (error) { setFormError(error instanceof Error ? error.message : "Call tidak dapat dibuat."); } finally { setSubmitting(false); } }
+  async function closeCall(call: Call) { if (!window.confirm(`Tutup call ${call.ticker.replace(".JK", "")} ini?`)) return; setClosing(call.id); try { const res = await fetch(`/api/calls/${call.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "CLOSED" }) }); const data = await res.json(); if (!res.ok) throw new Error(data.error ?? "Call tidak dapat ditutup."); await loadCalls(); } catch (error) { setLoadError(error instanceof Error ? error.message : "Call tidak dapat ditutup."); } finally { setClosing(null); } }
 
-      {/* Admin compose form */}
-      {isAdmin && (
-        <div className="card mb-6 p-6">
-          <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-            Buat call baru
-          </h2>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <div>
-                <label className="mb-1.5 block text-sm text-[var(--text-muted)]">Ticker</label>
-                <input
-                  maxLength={16}
-                  value={ticker}
-                  onChange={(e) => setTicker(e.target.value)}
-                  className="input"
-                  placeholder="BBCA"
-                  required
-                />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-sm text-[var(--text-muted)]">Action</label>
-                <select
-                  value={action}
-                  onChange={(e) => setAction(e.target.value)}
-                  className="input"
-                >
-                  <option value="BUY">BUY</option>
-                  <option value="SELL">SELL</option>
-                  <option value="HOLD">HOLD</option>
-                </select>
-              </div>
-              <div>
-                <label className="mb-1.5 block text-sm text-[var(--text-muted)]">
-                  Target Price
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  value={targetPrice}
-                  onChange={(e) => setTargetPrice(e.target.value)}
-                  className="input"
-                  placeholder="Opsional"
-                />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-sm text-[var(--text-muted)]">
-                  Entry Price
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  value={entryPrice}
-                  onChange={(e) => setEntryPrice(e.target.value)}
-                  className="input"
-                  placeholder="Opsional"
-                />
-              </div>
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm text-[var(--text-muted)]">Alasan</label>
-              <textarea
-                maxLength={1000}
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                className="input min-h-[80px]"
-                placeholder="Jelaskan alasan call ini..."
-              />
-            </div>
-            {formError && (
-              <div className="text-sm text-[var(--down)]">{formError}</div>
-            )}
-            <button
-              type="submit"
-              disabled={submitting}
-              className="btn-gold px-5 py-2.5 text-sm"
-            >
-              {submitting ? "Memposting..." : "Post Call"}
-            </button>
-          </form>
-        </div>
-      )}
-
-      {/* Calls feed */}
-      <div className="space-y-3">
-        {loadError ? (
-          <div className="card p-8 text-center text-[var(--down)]">
-            {loadError}
-          </div>
-        ) : loading ? (
-          <div className="card p-8 text-center text-[var(--text-muted)]">Memuat...</div>
-        ) : calls.length === 0 ? (
-          <div className="card p-8 text-center text-[var(--text-muted)]">
-            Belum ada calls.
-          </div>
-        ) : (
-          calls.map((c) => {
-            const style = actionStyles[c.action] ?? actionStyles.HOLD;
-            return (
-              <div
-                key={c.id}
-                className="card card-hover p-5"
-              >
-                <div className="flex flex-wrap items-center gap-3">
-                  <span
-                    className={`rounded px-2.5 py-1 text-xs font-bold ${style.cls}`}
-                  >
-                    {style.label}
-                  </span>
-                  <span className="text-lg font-semibold">
-                    {c.ticker.replace(".JK", "")}
-                  </span>
-                  <div className="flex flex-wrap gap-3 text-xs text-[var(--text-muted)]">
-                    {c.entryPrice != null && (
-                      <span>
-                        Entry:{" "}
-                        <span className="tabular-nums">
-                          {c.entryPrice.toLocaleString("id-ID")}
-                        </span>
-                      </span>
-                    )}
-                    {c.targetPrice != null && (
-                      <span>
-                        Target:{" "}
-                        <span className="tabular-nums">
-                          {c.targetPrice.toLocaleString("id-ID")}
-                        </span>
-                      </span>
-                    )}
-                  </div>
-                  <span className="ml-auto text-xs text-[var(--text-muted)]">
-                    {formatDateTime(new Date(c.createdAt).getTime() / 1000)}
-                  </span>
-                </div>
-                {c.reason && (
-                  <p className="mt-3 text-sm leading-relaxed text-[var(--text-muted)]">
-                    {c.reason}
-                  </p>
-                )}
-                <div className="mt-3 text-xs text-[var(--text-muted)]">
-                  oleh {c.author?.name ?? c.author?.email}
-                </div>
-              </div>
-            );
-          })
-        )}
-      </div>
-    </AppShell>
-  );
+  if (status === "loading" || status === "unauthenticated" || !session?.user?.id) return status === "loading" ? <AppShell><p className="text-[var(--muted)]">Memuat akun.</p></AppShell> : null;
+  return <AppShell userName={session.user.name} userRole={session.user.role}>
+    <header className="mb-6"><h1 className="text-2xl font-bold">Calls</h1><p className="mt-1 text-sm text-[var(--muted)]">Call dari admin Velox. Konten komunitas bukan instruksi transaksi.</p></header>
+    {isAdmin && <section className="card mb-6 p-5"><h2 className="text-base font-semibold">Buat call</h2><form onSubmit={submit} className="mt-4 space-y-4"><div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4"><div className="sm:col-span-2"><StockPicker key={pickerKey} id="calls-page-symbol" label="Saham" onChange={(stock, query) => { setTicker(stock?.symbol ?? ""); setTickerQuery(query); setFormError(""); }} /></div><Field label="Aksi"><select value={action} onChange={(event) => setAction(event.target.value as Call["action"])} className="input"><option>BUY</option><option>SELL</option><option>HOLD</option></select></Field><Field label="Entry, opsional"><input type="number" min="1" value={entryPrice} onChange={(event) => setEntryPrice(event.target.value)} className="input" /></Field><Field label="Target, opsional"><input type="number" min="1" value={targetPrice} onChange={(event) => setTargetPrice(event.target.value)} className="input" /></Field></div><Field label="Alasan, opsional"><textarea maxLength={1000} value={reason} onChange={(event) => setReason(event.target.value)} className="input min-h-24" placeholder="Alasan spesifik untuk call ini." /></Field>{formError && <p role="alert" className="text-sm text-[var(--down)]">{formError}</p>}<button disabled={submitting} className="btn-gold min-h-11 px-4 text-sm">{submitting ? "Membuat call" : "Buat Call"}</button></form></section>}
+    <div className="mb-4 flex gap-2" aria-label="Filter status call">{(["ALL", "OPEN", "CLOSED"] as const).map((value) => <button key={value} type="button" onClick={() => setFilter(value)} className={`min-h-11 rounded-lg border px-3 text-sm font-medium ${filter === value ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--foreground)]" : "border-[var(--border)] text-[var(--muted)]"}`}>{value === "ALL" ? "Semua" : value === "OPEN" ? "Aktif" : "Selesai"}</button>)}</div>
+    {loading ? <div className="card p-8 text-center text-[var(--muted)]">Memuat calls.</div> : loadError ? <div className="card p-8 text-center"><p className="text-[var(--down)]">{loadError}</p><button type="button" onClick={() => void loadCalls()} className="mt-3 font-medium underline">Coba lagi</button></div> : calls.length === 0 ? <div className="card p-8 text-center text-[var(--muted)]">Belum ada call untuk filter ini.</div> : <div className="space-y-3">{calls.map((call) => <article key={call.id} className="card p-5"><div className="flex flex-wrap items-center gap-2"><span className={`rounded-md border px-2 py-1 text-xs font-bold ${styles[call.action]}`}>{call.action}</span><Link href={`/stock/${call.ticker}`} className="text-lg font-semibold hover:text-[var(--accent)]">{call.ticker.replace(".JK", "")}</Link><span className={`rounded-md px-2 py-1 text-xs font-medium ${call.status === "OPEN" ? "bg-[var(--accent-soft)] text-[var(--foreground)]" : "bg-[var(--card-hover)] text-[var(--muted)]"}`}>{call.status === "OPEN" ? "Aktif" : "Selesai"}</span><time className="ml-auto text-xs text-[var(--muted)]">{formatDateTime(call.createdAt)}</time></div><dl className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-sm"><div><dt className="inline text-[var(--muted)]">Entry: </dt><dd className="inline font-medium tabular-nums">{formatPrice(call.entryPrice)}</dd></div><div><dt className="inline text-[var(--muted)]">Target: </dt><dd className="inline font-medium tabular-nums">{formatPrice(call.targetPrice)}</dd></div></dl>{call.reason && <p className="mt-3 text-sm leading-relaxed text-[var(--muted)]">{call.reason}</p>}<CallChart symbol={call.ticker} height={220} /><div className="mt-4 flex items-center justify-between gap-3 text-xs text-[var(--muted)]"><span>oleh {call.author.name ?? call.author.email}{call.closedAt ? `, ditutup ${formatDateTime(call.closedAt)}` : ""}</span>{isAdmin && call.status === "OPEN" && <button type="button" onClick={() => void closeCall(call)} disabled={closing === call.id} className="btn-ghost min-h-11 px-3 text-sm">{closing === call.id ? "Menutup" : "Tutup Call"}</button>}</div></article>)}</div>}
+  </AppShell>;
 }
 
-export default function CallsPage() {
-  return <CallsClient />;
-}
+function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label className="block text-sm font-medium text-[var(--foreground)]"><span className="mb-1.5 block">{label}</span>{children}</label>; }

@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticatedUser } from "@/lib/authz";
 import { prisma } from "@/lib/db";
-import { allowedMarketSymbol } from "@/lib/market";
+import { searchedSymbol } from "@/lib/market";
 import { takeRateLimit } from "@/lib/rate-limit";
 import { readJsonObject } from "@/lib/request";
 import { optionalPositiveNumber, trimmedText } from "@/lib/validation";
+import { getQuote } from "@/lib/yahoo";
 
 const actions = ["BUY", "SELL", "HOLD"] as const;
 type Action = (typeof actions)[number];
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const user = await authenticatedUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -26,8 +27,19 @@ export async function GET() {
     );
   }
 
+  const rawStatus = req.nextUrl.searchParams.get("status");
+  const status = rawStatus === null ? undefined : rawStatus === "OPEN" || rawStatus === "CLOSED" ? rawStatus : null;
+  if (status === null) {
+    return NextResponse.json({ error: "Status call tidak valid." }, { status: 400 });
+  }
+  const rawLimit = req.nextUrl.searchParams.get("limit");
+  const limit = rawLimit === null ? 50 : Number(rawLimit);
+  if (!Number.isInteger(limit) || limit < 1 || limit > 50) {
+    return NextResponse.json({ error: "Limit call tidak valid." }, { status: 400 });
+  }
   const calls = await prisma.call.findMany({
-    take: 50,
+    take: limit,
+    where: status ? { status } : undefined,
     orderBy: { createdAt: "desc" },
     include: { author: { select: { name: true, email: true } } },
   });
@@ -36,7 +48,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const user = await authenticatedUser();
-  if (!user) {
+  if (!user || user.status !== "ACTIVE") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   if (user.role !== "admin") {
@@ -64,17 +76,11 @@ export async function POST(req: NextRequest) {
   const reason = trimmedText(body.reason, 1_000);
   const targetPrice = optionalPositiveNumber(body.targetPrice);
   const entryPrice = optionalPositiveNumber(body.entryPrice);
-  const fullTicker = tickerInput
-    ? allowedMarketSymbol(
-        tickerInput.includes(".") || tickerInput.startsWith("^")
-          ? tickerInput
-          : `${tickerInput}.JK`,
-      )
-    : null;
+  const fullTicker = tickerInput ? searchedSymbol(tickerInput) : null;
 
-  if (!fullTicker) {
+  if (!fullTicker || !fullTicker.endsWith(".JK")) {
     return NextResponse.json(
-      { error: "Ticker tidak tersedia di watchlist Velox." },
+      { error: "Pilih saham Indonesia yang valid." },
       { status: 400 },
     );
   }
@@ -89,6 +95,11 @@ export async function POST(req: NextRequest) {
       { error: "Harga atau alasan tidak valid." },
       { status: 400 },
     );
+  }
+
+  const quote = await getQuote(fullTicker).catch(() => null);
+  if (!quote?.symbol.endsWith(".JK") || quote.price == null) {
+    return NextResponse.json({ error: "Data saham tidak ditemukan." }, { status: 400 });
   }
 
   const call = await prisma.call.create({

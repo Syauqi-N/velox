@@ -40,7 +40,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Simbol tidak valid." }, { status: 400 });
   }
 
-  const count = await prisma.watchlistEntry.count({ where: { userId: user.id } });
+  const existing = await prisma.watchlistEntry.findUnique({ where: { userId_symbol: { userId: user.id, symbol } }, select: { id: true } });
+  const count = existing ? 0 : await prisma.watchlistEntry.count({ where: { userId: user.id } });
   if (count >= 50) {
     return NextResponse.json(
       { error: "Watchlist maksimal 50 saham." },

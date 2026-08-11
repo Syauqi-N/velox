@@ -27,6 +27,7 @@ function MembersClient() {
   const [codeResult, setCodeResult] = useState<{ id: string; code: string; expiresAt: string } | null>(null);
   const [copied, setCopied] = useState(false);
   const [refreshTick, setRefreshTick] = useState(0);
+  const [promotedEmail, setPromotedEmail] = useState("");
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -92,6 +93,27 @@ function MembersClient() {
     }
   }
 
+  async function promote(member: Member) {
+    if (!window.confirm(`Jadikan ${member.email} sebagai admin? Member ini akan dapat mengelola anggota dan trading calls.`)) return;
+    setBusyId(member.id);
+    setPromotedEmail("");
+    try {
+      const res = await fetch(`/api/admin/members/${member.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role: "admin" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Peran tidak dapat diperbarui.");
+      setPromotedEmail(member.email);
+      setRefreshTick((value) => value + 1);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Peran tidak dapat diperbarui.");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   if (status === "loading") {
     return (
       <AppShell>
@@ -117,6 +139,7 @@ function MembersClient() {
           {error}
         </div>
       )}
+      {promotedEmail && <div role="status" className="mb-4 rounded-lg border border-[var(--up)]/30 bg-[var(--up)]/10 px-3 py-2 text-sm text-[var(--up)]">{promotedEmail} sekarang admin. Minta member tersebut login ulang agar aksesnya diperbarui.</div>}
 
       {/* Approval */}
       <div className="card mb-5 overflow-hidden">
@@ -193,6 +216,7 @@ function MembersClient() {
                 <th className="px-5 py-3 font-medium">Peran</th>
                 <th className="px-5 py-3 font-medium">Status</th>
                 <th className="px-5 py-3 font-medium">Didaftarkan</th>
+                <th className="px-5 py-3 text-right font-medium">Aksi</th>
               </tr>
             </thead>
             <tbody>
@@ -226,11 +250,14 @@ function MembersClient() {
                   <td className="px-5 py-3 text-[var(--text-muted)]">
                     {formatDateTime(new Date(m.createdAt).getTime() / 1000)}
                   </td>
+                  <td className="px-5 py-3 text-right">
+                    {m.role === "member" && <button type="button" onClick={() => void promote(m)} disabled={busyId === m.id} className="btn-ghost min-h-11 px-3 text-sm">{busyId === m.id ? "Memperbarui" : "Jadikan admin"}</button>}
+                  </td>
                 </tr>
               ))}
               {members.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-5 py-8 text-center text-[var(--text-muted)]">
+                  <td colSpan={6} className="px-5 py-8 text-center text-[var(--text-muted)]">
                     Belum ada anggota.
                   </td>
                 </tr>

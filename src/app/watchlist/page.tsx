@@ -5,6 +5,8 @@ import { signOut, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import AppShell from "@/components/AppShell";
+import StockPicker from "@/components/StockPicker";
+import StockChart from "@/components/calls/CallChart";
 import { formatCompact, formatPercent, formatPrice, signClass } from "@/lib/format";
 
 interface QuoteRow {
@@ -24,6 +26,8 @@ function WatchlistClient() {
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(true);
   const [addQ, setAddQ] = useState("");
+  const [addQuery, setAddQuery] = useState("");
+  const [pickerKey, setPickerKey] = useState(0);
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState("");
 
@@ -98,7 +102,10 @@ function WatchlistClient() {
     e.preventDefault();
     setAddError("");
     const symbol = addQ.trim().toUpperCase();
-    if (!symbol) return;
+    if (!symbol) {
+      setAddError(addQuery.trim() ? "Pilih saham dari dropdown agar ticker valid." : "Cari dan pilih saham untuk ditambahkan.");
+      return;
+    }
     setAdding(true);
     try {
       const res = await fetch("/api/watchlist", {
@@ -109,6 +116,8 @@ function WatchlistClient() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Gagal menambahkan saham.");
       setAddQ("");
+      setAddQuery("");
+      setPickerKey((value) => value + 1);
       setTick((t) => t + 1);
     } catch (err) {
       setAddError(err instanceof Error ? err.message : "Terjadi kesalahan.");
@@ -148,98 +157,53 @@ function WatchlistClient() {
         </div>
       </div>
 
-      <form onSubmit={addSymbol} className="mb-4 flex max-w-md gap-2">
-        <input
-          value={addQ}
-          onChange={(e) => setAddQ(e.target.value)}
-          className="input"
-          placeholder="Tambahkan simbol (contoh: BBCA.JK)"
-          aria-label="Simbol saham"
-        />
-        <button type="submit" disabled={adding} className="btn-gold shrink-0 px-4 py-2 text-sm">
+      <form onSubmit={addSymbol} className="mb-4 flex max-w-xl items-start gap-2">
+        <div className="min-w-0 flex-1"><StockPicker key={pickerKey} id="watchlist-symbol" label="Tambah saham ke watchlist" hideLabel onChange={(stock, query) => { setAddQ(stock?.symbol ?? ""); setAddQuery(query); setAddError(""); }} /></div>
+        <button type="submit" disabled={adding} className="btn-gold min-h-11 shrink-0 px-4 py-2 text-sm">
           {adding ? "…" : "Tambah"}
         </button>
       </form>
       {addError && <p className="mb-3 text-sm text-[var(--down)]">{addError}</p>}
 
-      <div className="card overflow-hidden">
-        {loading ? (
-          <div className="p-8 text-center text-sm text-[var(--text-muted)]">Memuat…</div>
-        ) : error ? (
-          <div className="p-8 text-center text-sm text-[var(--text-muted)]">Gagal memuat watchlist.</div>
-        ) : symbols.length === 0 ? (
-          <div className="p-8 text-center text-sm text-[var(--text-muted)]">
+      {loading || (symbols.length > 0 && rows.length === 0) ? (
+        <div className="card p-8 text-center text-sm text-[var(--text-muted)]">Memuat watchlist.</div>
+      ) : error ? (
+        <div className="card p-8 text-center text-sm text-[var(--text-muted)]">Gagal memuat watchlist.</div>
+      ) : symbols.length === 0 ? (
+        <div className="card p-8 text-center text-sm text-[var(--text-muted)]">
             Watchlist kamu masih kosong.{" "}
             <Link href="/dashboard" className="text-[var(--accent)] hover:underline">
               Cari saham di dashboard
             </Link>{" "}
             atau tambahkan simbol di atas.
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-[var(--border)] text-left text-xs uppercase tracking-wider text-[var(--text-muted)]">
-                  <th className="px-5 py-3 font-medium">Saham</th>
-                  <th className="px-5 py-3 text-right font-medium">Harga</th>
-                  <th className="px-5 py-3 text-right font-medium">Perubahan</th>
-                  <th className="px-5 py-3 text-right font-medium">%</th>
-                  <th className="px-5 py-3 text-right font-medium">Volume</th>
-                  <th className="px-5 py-3 text-right font-medium">Aksi</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((q) => (
-                  <tr
-                    key={q.symbol}
-                    className="border-b border-[var(--border)]/50 transition-colors last:border-0 hover:bg-[var(--card-hover)]"
-                  >
-                    <td className="px-5 py-2.5">
-                      <Link
-                        href={`/stock/${q.symbol}`}
-                        className="font-medium hover:text-[var(--accent)]"
-                      >
-                        {q.symbol.replace(".JK", "")}
-                      </Link>
-                      {q.longName && (
-                        <div className="text-xs text-[var(--text-muted)]">{q.longName}</div>
-                      )}
-                    </td>
-                    <td className="px-5 py-2.5 text-right tabular-nums">
-                      {formatPrice(q.price)}
-                    </td>
-                    <td
-                      className={`px-5 py-2.5 text-right tabular-nums ${signClass(q.change)}`}
-                    >
-                      {q.change != null
-                        ? `${(q.change > 0 ? "+" : "") + q.change.toLocaleString("id-ID", { maximumFractionDigits: 0 })}`
-                        : "—"}
-                    </td>
-                    <td
-                      className={`px-5 py-2.5 text-right tabular-nums ${signClass(q.changePercent)}`}
-                    >
-                      {formatPercent(q.changePercent)}
-                    </td>
-                    <td className="px-5 py-2.5 text-right tabular-nums text-[var(--text-muted)]">
-                      {q.volume != null ? formatCompact(q.volume) : "—"}
-                    </td>
-                    <td className="px-5 py-2.5 text-right">
-                      <button
-                        type="button"
-                        onClick={() => remove(q.symbol)}
-                        className="text-[var(--text-muted)] transition-colors hover:text-[var(--down)]"
-                        aria-label={`Hapus ${q.symbol}`}
-                      >
-                        Hapus
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          {rows.map((quote) => (
+            <article key={quote.symbol} className="card min-w-0 p-5">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <Link href={`/stock/${quote.symbol}`} className="text-lg font-bold tracking-tight hover:text-[var(--accent)]">{quote.symbol.replace(".JK", "")}</Link>
+                  <p className="mt-0.5 truncate text-xs text-[var(--text-muted)]">{quote.longName ?? "Nama perusahaan tidak tersedia"}</p>
+                </div>
+                <button type="button" onClick={() => remove(quote.symbol)} className="btn-ghost min-h-11 shrink-0 px-3 text-xs hover:text-[var(--down)]" aria-label={`Hapus ${quote.symbol} dari watchlist`}>Hapus</button>
+              </div>
+              <div className="mt-5 flex flex-wrap items-end justify-between gap-3">
+                <div>
+                  <p className="text-xs uppercase tracking-wider text-[var(--text-muted)]">Harga terakhir</p>
+                  <p className="mt-1 text-2xl font-bold tabular-nums">{formatPrice(quote.price)}</p>
+                </div>
+                <div className={`text-right tabular-nums ${signClass(quote.changePercent)}`}>
+                  <p className="text-base font-semibold">{formatPercent(quote.changePercent)}</p>
+                  <p className="mt-0.5 text-xs">{quote.change != null ? `${quote.change > 0 ? "+" : ""}${quote.change.toLocaleString("id-ID", { maximumFractionDigits: 0 })}` : "Tidak tersedia"}</p>
+                </div>
+              </div>
+              <div className="mt-4 flex items-center justify-between border-y border-[var(--border)] py-2 text-xs"><span className="text-[var(--text-muted)]">Volume</span><span className="font-medium tabular-nums">{quote.volume != null ? formatCompact(quote.volume) : "Tidak tersedia"}</span></div>
+              <StockChart symbol={quote.symbol} height={220} />
+            </article>
+          ))}
+        </div>
+      )}
     </AppShell>
   );
 }

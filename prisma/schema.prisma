@@ -16,29 +16,52 @@ enum UserStatus {
   ACTIVE
 }
 
+enum InvestmentStyle {
+  VALUE
+  GROWTH
+  MOMENTUM
+  DIVIDEND
+  TRADER
+}
+
 enum CallAction {
   BUY
   SELL
   HOLD
 }
 
+enum CallStatus {
+  OPEN
+  CLOSED
+}
+
 // Model: a user/member of the Velox circle
 model User {
-  id                 String   @id @default(cuid())
-  email              String   @unique
+  id                 String           @id @default(cuid())
+  email              String           @unique
   name               String?
+  bio                String?
+  memberTags         String[]         @default([])
+  investmentStyle    InvestmentStyle?
+  favoriteSectors    String[]         @default([])
+  avatarData         Bytes?
+  avatarMimeType     String?
+  avatarName         String?
+  isAi               Boolean          @default(false)
   passwordHash       String?
-  role               UserRole @default(member)
-  status             UserStatus @default(PENDING)
-  entryCodeHash      String?  @unique
+  role               UserRole         @default(member)
+  status             UserStatus       @default(PENDING)
+  entryCodeHash      String?          @unique
   entryCodeExpiresAt DateTime?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
 
   posts     Post[]
   comments  Comment[]
   watchlist WatchlistEntry[]
   calls     Call[]
+
+  @@index([isAi])
 }
 
 // Model: a trading call / recommendation posted by the circle
@@ -46,41 +69,55 @@ model Call {
   id          String     @id @default(cuid())
   ticker      String // e.g. "BBCA"
   action      CallAction
+  status      CallStatus @default(OPEN)
   targetPrice Float? // optional target price
   entryPrice  Float? // optional entry / reference price
   reason      String? // short rationale
   authorId    String
   author      User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  closedAt    DateTime?
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
   @@index([ticker])
-  @@index([createdAt])
+  @@index([status, createdAt])
 }
 
 // Model: a post in the member feed
 model Post {
-  id        String   @id @default(cuid())
-  content   String
-  authorId  String
-  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                    String    @id @default(cuid())
+  content               String
+  symbol                String?
+  imageData             Bytes?
+  imageMimeType         String?
+  imageName             String?
+  priceSnapshot         Float?
+  changePercentSnapshot Float?
+  priceCapturedAt       DateTime?
+  authorId              String
+  author                User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
   comments Comment[]
 
   @@index([createdAt])
+  @@index([symbol, createdAt])
 }
 
 // Model: a comment on a post
 model Comment {
-  id        String   @id @default(cuid())
-  content   String
-  postId    String
-  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
-  authorId  String
-  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
+  id            String   @id @default(cuid())
+  content       String
+  imageData     Bytes?
+  imageMimeType String?
+  imageName     String?
+  aiStatus      String?
+  postId        String
+  post          Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  authorId      String
+  author        User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
 
   @@index([postId, createdAt])
 }

@@ -3,13 +3,14 @@
 import { useEffect, useState } from "react";
 import { signOut, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import AppShell from "@/components/AppShell";
 import PostComposer from "@/components/feed/PostComposer";
 import SocialFeed from "@/components/feed/SocialFeed";
 import IHSGChartCard from "@/components/charts/IHSGChartCard";
 import SearchPane from "@/components/search/SearchPane";
 import WatchlistBox from "@/components/watchlist/WatchlistBox";
+import RecentCalls from "@/components/RecentCalls";
+import MarketPulse from "@/components/MarketPulse";
 
 export default function DashboardPage() {
   const { data: session, status } = useSession();
@@ -47,18 +48,19 @@ export default function DashboardPage() {
 
   return (
     <AppShell userName={session.user.name} userRole={session.user.role}>
-      <div className="mb-5">
-        <h1 className="text-2xl font-bold tracking-tight">Beranda Circle</h1>
+      <div className="mb-5 flex items-end justify-between gap-4">
+        <div><h1 className="text-2xl font-bold tracking-tight">Home</h1>
         <p className="mt-1 text-sm text-[var(--text-muted)]">
-          Diskusi langsung antar member — bagikan analisa dan tanggapi satu sama
-          lain.
+          Percakapan terbaru dari circle, dengan konteks saham saat diperlukan.
           {postCount > 0 && (
             <span className="ml-1 text-[var(--text-muted)]">({postCount} postingan)</span>
           )}
         </p>
+        </div>
+        <MarketPulse compact className="hidden sm:block" />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,65fr)_minmax(300px,35fr)]">
         {/* Feed */}
         <div className="min-w-0 space-y-4">
           <PostComposer
@@ -79,23 +81,7 @@ export default function DashboardPage() {
             onWatchlistChanged={onWatchlistChanged}
           />
           <WatchlistBox refreshTick={refreshTick} onSelect={setSelectedSymbol} />
-          <div className="card overflow-hidden">
-            <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
-              <h2 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-                Trading Calls
-              </h2>
-              <Link
-                href="/calls"
-                className="text-xs text-[var(--accent)] hover:underline"
-              >
-                Lihat semua →
-              </Link>
-            </div>
-            <p className="px-4 py-3 text-xs leading-relaxed text-[var(--text-muted)]">
-              Rekomendasi BUY / SELL / HOLD dari tim circle tetap tersedia di
-              halaman Calls.
-            </p>
-          </div>
+          <RecentCalls />
         </div>
       </div>
     </AppShell>

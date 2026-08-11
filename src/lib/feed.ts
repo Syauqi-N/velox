@@ -1,13 +1,18 @@
 export interface FeedAuthor {
   id: string;
   name: string | null;
+  memberTags: string[];
+  avatarUrl: string | null;
   email: string;
   role: "admin" | "member";
+  isAi: boolean;
 }
 
 export interface FeedComment {
   id: string;
   content: string;
+  aiStatus: string | null;
+  imageUrl: string | null;
   createdAt: string;
   author: FeedAuthor;
 }
@@ -15,16 +20,21 @@ export interface FeedComment {
 export interface FeedPost {
   id: string;
   content: string;
+  symbol: string | null;
+  imageUrl: string | null;
+  priceSnapshot: number | null;
+  changePercentSnapshot: number | null;
+  priceCapturedAt: string | null;
   createdAt: string;
   author: FeedAuthor;
   comments: FeedComment[];
 }
 
-export function authorLabel(author: FeedAuthor): string {
+export function authorLabel(author: Pick<FeedAuthor, "name" | "email">): string {
   return author.name?.trim() || author.email;
 }
 
-export function authorInitial(author: FeedAuthor): string {
+export function authorInitial(author: Pick<FeedAuthor, "name" | "email">): string {
   const label = authorLabel(author);
   return label.charAt(0).toUpperCase();
 }

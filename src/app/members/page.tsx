@@ -42,7 +42,7 @@ export default function MembersPage() {
   return (
     <AppShell>
       <header className="border-b border-[var(--border)] bg-[var(--card)] px-4 py-3">
-        <h1 className="text-lg font-bold text-[var(--foreground)]">Anggota</h1>
+        <h1 className="text-lg font-bold text-[var(--foreground)]">Members</h1>
       </header>
       
       <div className="p-4">

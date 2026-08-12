@@ -11,7 +11,7 @@ const navItems = [
   { href: "/charts", label: "Saham" },
   { href: "/news", label: "News" },
   { href: "/watchlist", label: "Watchlist" },
-  { href: "/members", label: "Anggota" },
+  { href: "/members", label: "Members" },
   { href: "/profile", label: "Profil" },
 ];
 

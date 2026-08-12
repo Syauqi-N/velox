@@ -39,7 +39,7 @@ export default function TickerTape({ symbols }: { symbols: string[] }) {
         <span className="pill shrink-0 border border-[var(--accent)]/40 bg-[var(--accent-soft)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--accent)]">
           Delayed
         </span>
-        <div className="marquee-track items-center gap-6 px-4 py-2 text-xs whitespace-nowrap text-[#e8edf6]">
+        <div className="marquee-track flex items-center gap-6 overflow-x-auto px-4 py-2 text-xs whitespace-nowrap text-[#e8edf6] scrollbar-hide">
           {[...quotes, ...quotes].map((q, i) => (
             <div key={`${q.symbol}-${i}`} className="flex items-center gap-1.5">
               <span className="font-semibold">{q.symbol.replace(".JK", "")}</span>

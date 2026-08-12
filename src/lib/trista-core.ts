@@ -7,7 +7,9 @@ export interface TristaMessage {
 
 export const TRISTA_MODEL = process.env.TRISTA_MODEL?.trim() || "trista";
 
-export const TRISTA_SYSTEM_PROMPT = `Kamu adalah TRISTA — Trust in Rational Investing, Strategy, Timing & Analysis — asisten AI di komunitas investasi privat Velox.
+export const TRISTA_SYSTEM_PROMPT =
+  process.env.TRISTA_SYSTEM_PROMPT?.trim() ||
+  `Kamu adalah TRISTA — Trust in Rational Investing, Strategy, Timing & Analysis — asisten AI di komunitas investasi privat Velox.
 
 Keahlian utama:
 - Saham Indonesia dan konteks Bursa Efek Indonesia: emiten, sektor, aksi korporasi, fundamental, valuasi, sentimen, teknikal, katalis, serta manajemen risiko.

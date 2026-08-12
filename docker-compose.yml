@@ -12,6 +12,7 @@ services:
       PORT: "3000"
       HOSTNAME: "0.0.0.0"
       TRISTA_MODEL: ${TRISTA_MODEL:-trista}
+      TRISTA_SYSTEM_PROMPT: ${TRISTA_SYSTEM_PROMPT:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -22,6 +23,8 @@ services:
     image: postgres:17-alpine
     container_name: velox-postgres
     restart: always
+    ports:
+      - "5433:5432"
     environment:
       POSTGRES_USER: velox
       POSTGRES_PASSWORD: ${DB_PASSWORD:-velox_secret}

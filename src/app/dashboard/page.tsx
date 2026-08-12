@@ -11,7 +11,6 @@ import SearchPane from "@/components/search/SearchPane";
 import WatchlistBox from "@/components/watchlist/WatchlistBox";
 import RecentCalls from "@/components/RecentCalls";
 import MarketPulse from "@/components/MarketPulse";
-import TickerTape from "@/components/TickerTape";
 
 export default function DashboardPage() {
   const { data: session, status } = useSession();
@@ -49,9 +48,9 @@ export default function DashboardPage() {
 
   return (
     <AppShell userName={session.user.name} userRole={session.user.role}>
-      <TickerTape symbols={["BBCA.JK", "BBRI.JK", "TLKM.JK", "ASII.JK", "BMRI.JK"]} />
-      
-      <div className="mt-4 mb-5 flex items-end justify-between gap-4">
+      <RecentCalls />
+
+      <div className="mt-5 mb-5 flex items-end justify-between gap-4">
         <div><h1 className="text-2xl font-bold tracking-tight">Home</h1>
         <p className="mt-1 text-sm text-[var(--text-muted)]">
           Percakapan terbaru dari circle, dengan konteks saham saat diperlukan.
@@ -84,7 +83,6 @@ export default function DashboardPage() {
             onWatchlistChanged={onWatchlistChanged}
           />
           <WatchlistBox refreshTick={refreshTick} onSelect={setSelectedSymbol} />
-          <RecentCalls />
         </div>
       </div>
     </AppShell>

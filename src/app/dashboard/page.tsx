@@ -6,10 +6,8 @@ import { useRouter } from "next/navigation";
 import AppShell from "@/components/AppShell";
 import PostComposer from "@/components/feed/PostComposer";
 import SocialFeed from "@/components/feed/SocialFeed";
-import IHSGChartCard from "@/components/charts/IHSGChartCard";
 import SearchPane from "@/components/search/SearchPane";
-import WatchlistBox from "@/components/watchlist/WatchlistBox";
-import RecentCalls from "@/components/RecentCalls";
+import MarketTabs from "@/components/MarketTabs";
 import MarketPulse from "@/components/MarketPulse";
 
 export default function DashboardPage() {
@@ -48,7 +46,7 @@ export default function DashboardPage() {
 
   return (
     <AppShell userName={session.user.name} userRole={session.user.role}>
-      <RecentCalls />
+      <MarketTabs refreshTick={refreshTick} onSelect={setSelectedSymbol} />
 
       <div className="mt-5 mb-5 flex items-end justify-between gap-4">
         <div><h1 className="text-2xl font-bold tracking-tight">Home</h1>
@@ -76,13 +74,11 @@ export default function DashboardPage() {
 
         {/* Sidebar: search column */}
         <div className="min-w-0 space-y-4">
-          <IHSGChartCard refreshTick={refreshTick} />
           <SearchPane
             selectedSymbol={selectedSymbol}
             onSelect={setSelectedSymbol}
             onWatchlistChanged={onWatchlistChanged}
           />
-          <WatchlistBox refreshTick={refreshTick} onSelect={setSelectedSymbol} />
         </div>
       </div>
     </AppShell>

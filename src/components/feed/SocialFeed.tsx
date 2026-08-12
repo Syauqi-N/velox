@@ -120,6 +120,7 @@ export default function SocialFeed({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [tick, setTick] = useState(0);
+  const [hasFocus, setHasFocus] = useState(true);
   const hasPendingTrista = posts.some((post) => post.comments.some((comment) => comment.aiStatus === "PENDING"));
 
   useEffect(() => {
@@ -127,6 +128,21 @@ export default function SocialFeed({
     const timer = window.setTimeout(() => setTick((value) => value + 1), 1_500);
     return () => window.clearTimeout(timer);
   }, [hasPendingTrista, tick]);
+
+  // Auto-refresh feed every 8s while the tab is visible, so new posts/
+  // comments from other members appear without a manual reload.
+  useEffect(() => {
+    const onFocus = () => setHasFocus(document.visibilityState === "visible");
+    onFocus();
+    document.addEventListener("visibilitychange", onFocus);
+    return () => document.removeEventListener("visibilitychange", onFocus);
+  }, []);
+
+  useEffect(() => {
+    if (!hasFocus) return;
+    const timer = window.setInterval(() => setTick((value) => value + 1), 8_000);
+    return () => window.clearInterval(timer);
+  }, [hasFocus]);
 
   useEffect(() => {
     let cancelled = false;

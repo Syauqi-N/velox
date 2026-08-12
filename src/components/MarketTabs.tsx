@@ -24,7 +24,7 @@ export default function MarketTabs({
 
   return (
     <div className="card overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--card)] shadow-[0_1px_2px_rgba(14,34,48,0.08),0_4px_12px_rgba(14,34,48,0.12)]">
-      <div className="flex items-center gap-1 border-b border-[var(--border)] px-2 pt-2">
+      <div className="flex items-center gap-1 border-b border-[var(--border)] px-3 py-3">
         {tabs.map((tab) => {
           const isActive = active === tab.id;
           return (
@@ -34,9 +34,9 @@ export default function MarketTabs({
               onClick={() => setActive(tab.id)}
               aria-pressed={isActive}
               aria-current={isActive ? "page" : undefined}
-              className={`min-h-10 flex-1 rounded-t-lg px-3 text-sm font-semibold transition-colors ${
+              className={`rounded-full px-4 py-1.5 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${
                 isActive
-                  ? "border-b-2 border-[var(--accent)] bg-[var(--card-hover)] text-[var(--foreground)]"
+                  ? "bg-[var(--accent)] text-white shadow-sm"
                   : "text-[var(--muted)] hover:bg-[var(--card-hover)] hover:text-[var(--foreground)]"
               }`}
             >

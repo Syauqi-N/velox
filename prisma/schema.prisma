@@ -66,18 +66,20 @@ model User {
 
 // Model: a trading call / recommendation posted by the circle
 model Call {
-  id          String     @id @default(cuid())
+  id          String      @id @default(cuid())
   ticker      String // e.g. "BBCA"
   action      CallAction
   status      CallStatus @default(OPEN)
-  targetPrice Float? // optional target price
-  entryPrice  Float? // optional entry / reference price
-  reason      String? // short rationale
+  entryLow    Float?
+  entryHigh   Float?
+  targetLow   Float?
+  targetHigh  Float?
+  reason      String?
   authorId    String
-  author      User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  author      User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
   closedAt    DateTime?
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 
   @@index([ticker])
   @@index([status, createdAt])

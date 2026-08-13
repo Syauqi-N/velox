@@ -74,8 +74,10 @@ export async function POST(req: NextRequest) {
   const tickerInput = trimmedText(body.ticker, 16, true);
   const actionInput = trimmedText(body.action, 4, true)?.toUpperCase();
   const reason = trimmedText(body.reason, 1_000);
-  const targetPrice = optionalPositiveNumber(body.targetPrice);
-  const entryPrice = optionalPositiveNumber(body.entryPrice);
+  const entryLow = optionalPositiveNumber(body.entryLow);
+  const entryHigh = optionalPositiveNumber(body.entryHigh);
+  const targetLow = optionalPositiveNumber(body.targetLow);
+  const targetHigh = optionalPositiveNumber(body.targetHigh);
   const fullTicker = tickerInput ? searchedSymbol(tickerInput) : null;
 
   if (!fullTicker || !fullTicker.endsWith(".JK")) {
@@ -90,9 +92,9 @@ export async function POST(req: NextRequest) {
       { status: 400 },
     );
   }
-  if (reason === null || targetPrice === undefined || entryPrice === undefined) {
+  if (reason === null) {
     return NextResponse.json(
-      { error: "Harga atau alasan tidak valid." },
+      { error: "Alasan tidak valid." },
       { status: 400 },
     );
   }
@@ -106,8 +108,10 @@ export async function POST(req: NextRequest) {
     data: {
       ticker: fullTicker,
       action: actionInput as Action,
-      targetPrice,
-      entryPrice,
+      entryLow,
+      entryHigh,
+      targetLow,
+      targetHigh,
       reason: reason || null,
       authorId: user.id,
     },

@@ -2,94 +2,269 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { signOut, useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import AppShell from "@/components/AppShell";
+import { formatDateTime } from "@/lib/format";
 
 interface Member {
   id: string;
+  email: string;
   name: string | null;
-  role: string;
+  role: "admin" | "member";
+  status: "PENDING" | "ACTIVE";
+  active: boolean;
   isAi: boolean;
   memberTags: string[];
+  createdAt: string;
 }
 
 export default function MembersPage() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+
   const [members, setMembers] = useState<Member[]>([]);
+  const [pending, setPending] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [codeResult, setCodeResult] = useState<{ id: string; code: string; expiresAt: string } | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [refreshTick, setRefreshTick] = useState(0);
+  const [promotedEmail, setPromotedEmail] = useState("");
 
+  // Admin-only guard: non-admin tidak bisa membuka tab Members.
   useEffect(() => {
+    if (status === "unauthenticated") {
+      router.replace("/login");
+      return;
+    }
+    if (status === "authenticated" && session?.user?.role !== "admin") {
+      router.replace("/dashboard");
+      return;
+    }
+    if (status !== "authenticated") return;
+
     let cancelled = false;
-    fetch("/api/members")
-      .then(async (res) => {
-        if (!res.ok) throw new Error("Failed to fetch members");
-        return res.json();
-      })
-      .then((data) => {
+    (async () => {
+      try {
+        const res = await fetch("/api/admin/members");
+        if (!res.ok) throw new Error("fetch failed");
+        const data = await res.json();
         if (!cancelled) {
-          setMembers(data.members || []);
+          setMembers(data.members ?? []);
+          setPending(data.pending ?? []);
           setError("");
         }
-      })
-      .catch((err) => {
-        if (!cancelled) setError(err.message);
-      })
-      .finally(() => {
+      } catch {
+        if (!cancelled) setError("Gagal memuat data anggota.");
+      } finally {
         if (!cancelled) setLoading(false);
-      });
+      }
+    })();
     return () => { cancelled = true; };
-  }, []);
+  }, [status, session?.user?.role, router, refreshTick]);
+
+  async function approve(id: string) {
+    setBusyId(id);
+    setCodeResult(null);
+    setCopied(false);
+    try {
+      const res = await fetch("/api/admin/approve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Gagal menyetujui.");
+      setCodeResult({ id, code: data.code, expiresAt: data.expiresAt });
+      setRefreshTick((t) => t + 1);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Terjadi kesalahan.");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function copyCode() {
+    if (!codeResult) return;
+    try {
+      await navigator.clipboard.writeText(codeResult.code);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      setError("Browser tidak mengizinkan akses clipboard.");
+    }
+  }
+
+  async function promote(member: Member) {
+    if (!window.confirm(`Jadikan ${member.email} sebagai admin? Member ini akan dapat mengelola anggota.`)) return;
+    setBusyId(member.id);
+    setPromotedEmail("");
+    try {
+      const res = await fetch(`/api/admin/members/${member.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role: "admin" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Peran tidak dapat diperbarui.");
+      setPromotedEmail(member.email);
+      setRefreshTick((v) => v + 1);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Peran tidak dapat diperbarui.");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  if (status === "loading") {
+    return (
+      <AppShell userName={undefined} userRole={undefined}>
+        <div className="text-[var(--text-muted)]">Memuat…</div>
+      </AppShell>
+    );
+  }
+  if (status === "unauthenticated" || session?.user?.role !== "admin") {
+    return null;
+  }
 
   return (
-    <AppShell>
-      <header className="border-b border-[var(--border)] bg-[var(--card)] px-4 py-3">
-        <h1 className="text-lg font-bold text-[var(--foreground)]">Members</h1>
-      </header>
-      
-      <div className="p-4">
+    <AppShell userName={session.user.name} userRole={session.user.role}>
+      <div className="mb-5">
+        <h1 className="text-2xl font-bold tracking-tight">Members</h1>
+        <p className="mt-1 text-sm text-[var(--text-muted)]">
+          Kelola anggota komunitas: setujui signup, berikan kode masuk, dan atur peran.
+        </p>
+      </div>
+
+      {error && (
+        <div className="mb-4 rounded-lg border border-[var(--down)]/30 bg-[var(--down)]/10 px-3 py-2 text-sm text-[var(--down)]">
+          {error}
+        </div>
+      )}
+      {promotedEmail && (
+        <div role="status" className="mb-4 rounded-lg border border-[var(--up)]/30 bg-[var(--up)]/10 px-3 py-2 text-sm text-[var(--up)]">
+          {promotedEmail} sekarang admin. Minta member tersebut login ulang agar aksesnya diperbarui.
+        </div>
+      )}
+
+      {/* Persetujuan signup (kode tampil 1x) */}
+      <div className="card mb-5 overflow-hidden">
+        <div className="border-b border-[var(--border)] px-5 py-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+            Persetujuan Signup ({pending.length})
+          </h2>
+        </div>
         {loading ? (
-          <div className="text-center text-sm text-[var(--muted)]">Memuat anggota...</div>
-        ) : error ? (
-          <div className="text-center text-sm text-[var(--down)]">{error}</div>
-        ) : members.length === 0 ? (
-          <div className="text-center text-sm text-[var(--muted)]">Belum ada anggota</div>
+          <div className="p-8 text-center text-sm text-[var(--text-muted)]">Memuat…</div>
+        ) : pending.length === 0 ? (
+          <div className="p-6 text-center text-sm text-[var(--text-muted)]">
+            Tidak ada permintaan signup baru.
+          </div>
         ) : (
-          <ul className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6">
-            {members.map((member) => (
-              <li key={member.id}>
-                <Link 
-                  href={`/members/${member.id}`}
-                  className="group flex flex-col items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--card)] p-3 transition hover:border-[var(--accent)]"
-                >
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--background)] group-hover:border-[var(--accent)]">
-                    {member.isAi ? (
-                      <svg className="h-6 w-6 text-[var(--accent)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                      </svg>
-                    ) : (
-                      <div className="text-xs font-semibold text-[var(--muted)]">
-                        {(member.name?.charAt(0).toUpperCase() || "M")}
-                      </div>
-                    )}
+          <ul className="divide-y divide-[var(--border)]/50">
+            {pending.map((m) => (
+              <li key={m.id} className="flex flex-wrap items-center gap-3 px-5 py-3">
+                <div className="min-w-0 flex-1">
+                  <div className="font-semibold">{m.name || m.email}</div>
+                  <div className="text-xs text-[var(--text-muted)]">{m.email}</div>
+                  <div className="text-[11px] text-[var(--text-muted)]">
+                    Didaftarkan {formatDateTime(new Date(m.createdAt).getTime() / 1000)}
                   </div>
-                  <div className="text-center">
-                    <p className="truncate text-xs font-medium text-[var(--foreground)]">
-                      {member.name || "Anonymous"}
-                    </p>
-                    {member.memberTags.length > 0 && (
-                      <p className="mt-0.5 truncate text-[10px] text-[var(--muted)]">
-                        {member.memberTags[0]}
-                      </p>
-                    )}
-                    {member.isAi && (
-                      <span className="mt-1 inline-block rounded-full bg-[var(--brand-navy-deep)] px-1.5 py-0.5 text-[9px] text-white">
-                        AI
-                      </span>
-                    )}
+                </div>
+                {codeResult && codeResult.id === m.id ? (
+                  <div className="flex flex-col items-end gap-1.5">
+                    <div className="flex items-center gap-2">
+                      <code className="rounded-lg border border-[var(--accent)]/40 bg-[var(--accent-soft)] px-3 py-1.5 font-mono text-base font-bold tracking-[0.15em] text-[var(--accent)]">
+                        {codeResult.code}
+                      </code>
+                      <button type="button" onClick={copyCode} className="btn-ghost px-3 py-1.5 text-xs">
+                        {copied ? "✓ Tersalin" : "Salin"}
+                      </button>
+                    </div>
+                    <span className="text-[11px] text-[var(--text-muted)]">
+                      Berlaku sampai {new Date(codeResult.expiresAt).toLocaleString("id-ID")}
+                    </span>
                   </div>
-                </Link>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => approve(m.id)}
+                    disabled={busyId === m.id}
+                    className="btn-gold px-4 py-2 text-sm"
+                  >
+                    {busyId === m.id ? "Memproses…" : "Setujui & Buat Kode"}
+                  </button>
+                )}
               </li>
             ))}
           </ul>
+        )}
+      </div>
+
+      {/* Daftar anggota */}
+      <div className="card overflow-hidden">
+        <div className="border-b border-[var(--border)] px-5 py-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+            Anggota ({members.length})
+          </h2>
+        </div>
+        {loading ? (
+          <div className="p-8 text-center text-sm text-[var(--text-muted)]">Memuat…</div>
+        ) : members.length === 0 ? (
+          <div className="p-6 text-center text-sm text-[var(--text-muted)]">Belum ada anggota.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-[var(--border)] text-left text-xs uppercase tracking-wider text-[var(--text-muted)]">
+                  <th className="px-5 py-3 font-medium">Nama</th>
+                  <th className="px-5 py-3 font-medium">Email</th>
+                  <th className="px-5 py-3 font-medium">Peran</th>
+                  <th className="px-5 py-3 font-medium">Status</th>
+                  <th className="px-5 py-3 text-right font-medium">Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {members.map((m) => (
+                  <tr key={m.id} className="border-b border-[var(--border)]/50 transition-colors last:border-0 hover:bg-[var(--card-hover)]">
+                    <td className="px-5 py-3">
+                      <Link href={`/members/${m.id}`} className="font-semibold hover:text-[var(--accent)]">
+                        {m.name ?? "—"}
+                      </Link>
+                    </td>
+                    <td className="px-5 py-3 text-[var(--text-muted)]">{m.email}</td>
+                    <td className="px-5 py-3">
+                      <span className={m.role === "admin" ? "text-[var(--accent)]" : "text-[var(--text-muted)]"}>
+                        {m.role}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3">
+                      {m.active ? (
+                        <span className="inline-flex items-center gap-1.5 text-[var(--up)]">
+                          <span className="h-1.5 w-1.5 rounded-full bg-[var(--up)] shadow-[0_0_6px_var(--up)]" />
+                          Aktif
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 text-[var(--text-muted)]">
+                          <span className="h-1.5 w-1.5 rounded-full bg-muted" />
+                          Menunggu aktivasi
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-5 py-3 text-right">
+                      {m.role === "member" && (
+                        <button type="button" onClick={() => void promote(m)} disabled={busyId === m.id} className="btn-ghost min-h-11 px-3 text-sm">
+                          {busyId === m.id ? "Memperbarui" : "Jadikan admin"}
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </AppShell>
